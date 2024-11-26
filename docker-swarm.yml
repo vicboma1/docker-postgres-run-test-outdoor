@@ -1,0 +1,68 @@
+services:
+  ${APP}-run-execute-sql-${ENTORNO}:
+    image: postgres:15
+    depends_on:
+      - ${APP}-backend-postgres-${ENTORNO}
+    environment:
+      DB_HOST: ${APP}-backend-postgres-${ENTORNO}
+      DB_PORT: ${POSTGRES_INTERNAL_PORT}
+      DB_USER: ${USER}
+      DB_PASSWORD: ${PASS}
+      DB_NAME: ${DB}
+    volumes:
+      - /home/${APP}-${ENTORNO}/deploy/utils/script:/sh
+      - /home/${APP}-${ENTORNO}/${APP}-persistence/sql/dbo:/scripts
+    entrypoint: [ "bash", "/sh/run_sql.sh" ]
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == ${NODE_HOSTNAME_MACHINE}
+      restart_policy:
+        condition: none
+     env_file:
+      - deploy/${ENTORNO}/${ENTORNO}-raw.env
+
+  ${APP}-backend-postgres-${ENTORNO}:
+    labels:
+      - "UN=${APP}"
+      - "cliente=backend"
+      - "entorno=${ENTORNO}"
+    logging:
+       driver: "gelf"
+       options: 
+           gelf-address: "udp://${IP}:12201"
+           tag: "${APP}-backend-postgres-${ENTORNO}"
+           labels: "UN,cliente,entorno"
+    image: postgres:15
+    environment:
+      POSTGRES_DB: ${DB}
+      POSTGRES_USER: ${USER}
+      POSTGRES_PASSWORD: ${PASS}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "${POSTGRES_EXTERNAL_PORT}:${POSTGRES_INTERNAL_PORT}"
+    volumes:
+      - type: bind
+        source: ${POSTGRES_PATH_DATA}
+        target: /var/lib/postgresql/data
+      - type: bind
+        source: ${POSTGRES_PATH_CONFIG}
+        target: /var/lib/postgresql/data/postgresql.conf
+    networks:
+      - net_${APP}_${ENTORNO}
+    env_file:
+      - deploy/${ENTORNO}/${ENTORNO}-raw.env
+    deploy:
+      placement:
+        constraints:
+          - node.hostname == ${NODE_HOSTNAME_MACHINE}
+          
+networks:
+  net_${APP}_${ENTORNO}:
+    driver: overlay
+    attachable: true
+
+volumes:
+  postprepare:
+    driver: local
+
