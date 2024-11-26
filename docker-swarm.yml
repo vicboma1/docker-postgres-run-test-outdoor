@@ -1,4 +1,5 @@
 services:
+
   ${APP}-run-execute-sql-${ENTORNO}:
     image: postgres:15
     depends_on:
@@ -11,16 +12,18 @@ services:
       DB_NAME: ${DB}
     volumes:
       - /home/${APP}-${ENTORNO}/deploy/utils/script:/sh
-      - /home/${APP}-${ENTORNO}/${APP}-persistence/sql/dbo:/scripts
+      - /home/${APP}-${ENTORNO}/persistence/sql/dbo:/scripts
     entrypoint: [ "bash", "/sh/run_sql.sh" ]
+    networks:
+      - net_${APP}_${ENTORNO}
     deploy:
       placement:
         constraints:
           - node.hostname == ${NODE_HOSTNAME_MACHINE}
       restart_policy:
         condition: none
-     env_file:
-      - deploy/${ENTORNO}/${ENTORNO}-raw.env
+    env_file:
+      - /home/${APP}-${ENTORNO}/env/${ENTORNO}-raw.env
 
   ${APP}-backend-postgres-${ENTORNO}:
     labels:
@@ -43,15 +46,15 @@ services:
       - "${POSTGRES_EXTERNAL_PORT}:${POSTGRES_INTERNAL_PORT}"
     volumes:
       - type: bind
-        source: ${POSTGRES_PATH_DATA}
+        source: /home/${APP}-${ENTORNO}/persistence/storage/
         target: /var/lib/postgresql/data
       - type: bind
-        source: ${POSTGRES_PATH_CONFIG}
+        source: /home/${APP}-${ENTORNO}/persistence/config/postgresql.conf
         target: /var/lib/postgresql/data/postgresql.conf
     networks:
       - net_${APP}_${ENTORNO}
     env_file:
-      - deploy/${ENTORNO}/${ENTORNO}-raw.env
+      - /home/${APP}-${ENTORNO}/env/${ENTORNO}-raw.env
     deploy:
       placement:
         constraints:
